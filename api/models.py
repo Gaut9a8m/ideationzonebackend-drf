@@ -10,10 +10,6 @@ class Conferenceroom(models.Model):
     description = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        managed = False
-        db_table = 'conferenceroom'
-
 class User(models.Model):
     name = models.CharField(max_length=100)
     email = models.CharField(unique=True, max_length=100)
@@ -21,9 +17,6 @@ class User(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        managed = False
-        db_table = 'user'
 
 class Bookingslots(models.Model):
     is_available = models.BooleanField(default=True, db_column='is_active')
@@ -35,7 +28,3 @@ class Bookingslots(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     conference_room = models.ForeignKey('Conferenceroom', on_delete=models.DO_NOTHING)
     user = models.ForeignKey('User', on_delete=models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'bookingslots'
