@@ -1,7 +1,7 @@
 from requests import request
 from .serializers import *
 from .models import *
-import re
+import re, datetime
 
 
 from rest_framework.views import APIView
@@ -10,7 +10,7 @@ from rest_framework import status, viewsets
 from drf_yasg.utils import swagger_auto_schema
 
 from helper import validate_email, hash_password, check_password
-from django.db.models import F
+from django.db.models import F, Q
 
 class UserView(viewsets.ViewSet):
     #get user by id
@@ -312,13 +312,17 @@ class SlotBookingView(viewsets.ViewSet):
             to_time = request.data['end_time']
             book_date = request.data['booking_date']
         
-            slot_qs = Bookingslots.objects.filter(start_time__range=(from_time, to_time), end_time__range=(from_time,to_time),booking_date=book_date ,conference_room=conf_room_qs)
+            slot_qs = Bookingslots.objects.filter(Q(start_time__range=(from_time, to_time)) | Q(end_time__range=(from_time,to_time)),Q(booking_date=book_date ,conference_room=conf_room_qs))
+            serializer = BookingslotsSerializer(slot_qs, many=True)
 
             if slot_qs:
                 return Response({
                     "msg": "Slot already booked for this conference room",
+                    "data": serializer.data,
                     "status": status.HTTP_400_BAD_REQUEST
                 },status=status.HTTP_400_BAD_REQUEST)
+            
+            request.data['is_available'] = False
 
             serializer = BookingslotsCreateSerializer(data=request.data)
             if serializer.is_valid():
@@ -346,11 +350,10 @@ class SlotBookingView(viewsets.ViewSet):
             conf_id = request.data.get('conference_room')
             user_id = request.data.get('user')
             try:
-                conf_room_qs = Conferenceroom.objects.get(id=conf_id)
-                user_qs = User.objects.get(id=user_id)
+                conf_room_qs = Conferenceroom.objects.get(id=conf_id) if conf_id else None
+                user_qs = User.objects.get(id=user_id) if user_id else None
                 
             except Exception as e:
-                print('erer ',e)
                 return Response({
                     "msg": re.sub(' matching query', '',str(e)),
                     "status": status.HTTP_404_NOT_FOUND
@@ -360,11 +363,13 @@ class SlotBookingView(viewsets.ViewSet):
             to_time = request.data.get('end_time')
             book_date = request.data.get('booking_date')
         
-            slot_qs = Bookingslots.objects.filter(start_time__range=(from_time, to_time), end_time__range=(from_time,to_time),booking_date=book_date ,conference_room=conf_room_qs)
+            slot_qs = Bookingslots.objects.filter(Q(start_time__range=(from_time, to_time)) | Q(end_time__range=(from_time,to_time)),Q(booking_date=book_date ,conference_room=conf_room_qs))
+            serializer = BookingslotsSerializer(slot_qs, many=True)
 
             if slot_qs:
                 return Response({
                     "msg": "Slot already booked for this conference room",
+                    "data": serializer.data,
                     "status": status.HTTP_400_BAD_REQUEST
                 },status=status.HTTP_400_BAD_REQUEST)
 
@@ -386,5 +391,30 @@ class SlotBookingView(viewsets.ViewSet):
         except Exception as e:
             return Response({
                 "msg": str(e),
-                "status": status.HTTP_404_NOT_FOUND
-            },status=status.HTTP_404_NOT_FOUND)
+                "status": status.HTTP_500_INTERNAL_SERVER_ERROR
+            },status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class BookedSlotsView(viewsets.ViewSet):
+    #get all available slots
+    @swagger_auto_schema(responses={200: BookingslotsSerializer(many=True)})
+    def list(self, request):
+        try:
+            slot_qs = Bookingslots.objects.annotate(booked=F('booking_date')).filter(is_available = False, booking_date = datetime.date.today()).order_by('booked','start_time')
+            if not slot_qs:
+                return Response({
+                    "msg": "No slot bookings found",
+                    "status": status.HTTP_404_NOT_FOUND
+                },status=status.HTTP_404_NOT_FOUND)
+
+            serializer = BookingslotsSerializer(slot_qs, many=True)
+            return Response({
+                "msg": "success",
+                "data": serializer.data,
+                "status": status.HTTP_200_OK
+            },status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "msg": str(e),
+                "status": status.HTTP_500_INTERNAL_SERVER_ERROR
+            },status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -7,6 +7,8 @@ router.register('login', views.LoginView, basename='login')
 router.register('slot', views.SlotBookingView, basename='slot')
 router.register('conferenceroom', views.ConferenceRoomView, basename='conferenceroom')
 router.register('user', views.UserView, basename='user')
+router.register('booking', views.BookedSlotsView, basename='bookedslots')
+
 
 urlpatterns = [
     path('',include(router.urls))

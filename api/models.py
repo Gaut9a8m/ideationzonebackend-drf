@@ -19,7 +19,7 @@ class User(models.Model):
 
 
 class Bookingslots(models.Model):
-    is_available = models.BooleanField(default=True, db_column='is_active')
+    is_available = models.BooleanField(default=False, db_column='is_active')
     meet_agenda = models.TextField(blank=True, null=True)
     booking_date = models.DateField()
     start_time = models.DateTimeField()
